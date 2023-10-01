@@ -109,7 +109,7 @@ class Agent:
         self.gamma = gamma
 
     def get_epsilon(self, episode):
-        return max(self.min_epsilon, self.epsilon/np.sqrt(episode+1))
+        return max(self.min_epsilon, self.epsilon*np.exp(-self.epsilon_decay*episode))
 
     def get_action(self, state, episode):
         if np.random.random() < self.get_epsilon(episode):
@@ -117,12 +117,11 @@ class Agent:
         else:
             return np.argmax(self.model.predict(state))
 
-
-
-
-    def play(self, n_episodes: int)-> list[int]:
+    def play(self, n_episodes: int, render: bool=False)-> list[int]:
         rewards = []
         for episode in range(n_episodes):
+            # re-instantiate environment with render mode set to 'human'
+            self.env = gym.make('CartPole-v1', render_mode="human")
             # Reset the environment
             state, _ = self.env.reset()
             # make sure state is 2d arrray
@@ -132,6 +131,9 @@ class Agent:
             done = False
             total_reward = 0
             while not done:
+                # set the environment to render in real time
+                if render:
+                    self.env.render()
                 action = np.argmax(self.model.predict(state))
                 next_state, reward, term, trunc, _ = self.env.step(action)
                 # make sure next state is a 2D array
@@ -146,11 +148,14 @@ class Agent:
                 total_reward += reward
                 # update state
                 state = next_state
+            # close the renderer if done
+            if render:
+                self.env.close()
             rewards.append(total_reward)
         return rewards
 
 
-    def train(self, n_episodes, streamlit=False, update_freq=10):
+    def train(self, n_episodes, streamlit=False, update_freq=1):
         rewards = []
         for episode in range(n_episodes):
             # Reset the environment
@@ -181,7 +186,14 @@ class Agent:
                 state = next_state
             rewards.append(total_reward)
             if streamlit:
-                if episode % update_freq == 0: 
+                if episode % update_freq == 0:
+                    # print({
+                    #     'episode': episode,
+                    #     'total_reward': total_reward,
+                    #     'avg_reward': np.mean(rewards[-100:]),
+                    #     'epsilon': self.get_epsilon(episode),
+                    #     'learning_rate': self.model.get_learning_rate(episode)
+                    # })  # Print values for debugging
                     yield {
                         'episode': episode,
                         'total_reward': total_reward,
