@@ -1,5 +1,12 @@
+## TO DO ##
+# add option to alter/set termination reward
+# add option to alter step reward
+# add checkbox option to use RBF kernels
+# add checkbox option to use standard scaler
+# remove input dimension option after adding auto detect input dims to RL agent code
+
 import streamlit as st
-import mountain_car_rbf as mcr
+import gym_rl_agent as gra
 import matplotlib.pyplot as plt
 
 # Function to initialize the plots
@@ -165,22 +172,22 @@ if train_button:
     st.session_state.learning_rates = []
 
     #instantiate cartpole env
-    env = mcr.gym.make('CartPole-v1')
+    env = gra.gym.make('CartPole-v1')
 
     # collect sample states to fit scaler and rbf kernels
-    sample_states = mcr.get_sample_states(env, 10000)
+    sample_states = gra.get_sample_states(env, 10000)
 
     # instantiate scaler
-    scaler = mcr.StandardScaler()
+    scaler = gra.StandardScaler()
 
     # instantiate rbf kernels and merge into a feature union
     sigmas, n_components = zip(*kernels_params)
-    rbf_samplers = mcr.create_rbf_samplers(sigmas, n_components)
+    rbf_samplers = gra.create_rbf_samplers(sigmas, n_components)
     # create a FeatureUnion object of RBFSamplers
-    rbf_union = mcr.FeatureUnion([*rbf_samplers])
+    rbf_union = gra.FeatureUnion([*rbf_samplers])
 
     # instantiate a transformer class
-    transformer = mcr.Transformer()
+    transformer = gra.Transformer()
     # add scaler and rbf union
     transformer.add(scaler)
     transformer.add(rbf_union)
@@ -191,12 +198,12 @@ if train_button:
     input_dims, output_dims = zip(*layer_params)
     layers = []
     for i, o in zip(input_dims, output_dims):
-        layers.append(mcr.DenseLayer(i,o))
+        layers.append(gra.DenseLayer(i,o))
     
-    loss = mcr.MeanSquaredError()
+    loss = gra.MeanSquaredError()
 
     # create a model object
-    model = mcr.Model(layers=layers,
+    model = gra.Model(layers=layers,
                 loss=loss,
                 learning_rate=learning_rate,
                 learning_rate_decay=learning_rate_decay,
@@ -204,7 +211,7 @@ if train_button:
                 min_learning_rate=min_learning_rate)
 
     # create agent
-    agent = mcr.Agent(env, model, transformer, epsilon=epsilon, min_epsilon=min_epsilon, epsilon_decay=epsilon_decay, gamma=gamma)
+    agent = gra.Agent(env, model, transformer, epsilon=epsilon, min_epsilon=min_epsilon, epsilon_decay=epsilon_decay, gamma=gamma)
 
     # placeholders for the plots
     # reward_placeholder = st.empty()

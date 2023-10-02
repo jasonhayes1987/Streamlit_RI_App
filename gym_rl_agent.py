@@ -1,3 +1,6 @@
+## TO DO ##
+# add ability for code to detect input data size and auto set the layers input dims
+
 import gymnasium as gym
 import numpy as np
 from sklearn.kernel_approximation import RBFSampler
@@ -143,8 +146,6 @@ class Agent:
                     next_state = self.transformer.transform(next_state)
                 if term or trunc:
                     done = True
-                    # if term:
-                    #     reward = -200
                 total_reward += reward
                 # update state
                 state = next_state
