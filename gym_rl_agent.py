@@ -1,5 +1,5 @@
 ## TO DO ##
-# add ability for code to detect input data size and auto set the layers input dims
+# fix bug in models with more that one layer (grad var)
 
 import gymnasium as gym
 import numpy as np
@@ -11,11 +11,15 @@ from typing import List, Union
 
 
 class Layer:
-    def __init__(self, input_dim: int, output_dim: int):
+    def __init__(self, output_dim: int, input_dim: int=None):
         self.input_dim = input_dim
         self.output_dim = output_dim
         # Initialize the weights, for example using random values
-        self.w = np.random.randn(input_dim, output_dim)
+        # self.w = np.random.randn(input_dim, output_dim)
+
+    def _init_weights(self):
+        # Initialize the weights
+        self.w = np.random.randn(self.input_dim, self.output_dim)
 
     def forward(self, x):
         # Forward pass
@@ -26,8 +30,8 @@ class Layer:
         pass
 
 class DenseLayer(Layer):
-    def __init__(self, input_dim, output_dim):
-        super().__init__(input_dim, output_dim)
+    def __init__(self, output_dim: int, input_dim: int=None):
+        super().__init__(output_dim, input_dim)
 
     def forward(self, x):
         # Forward pass
@@ -65,13 +69,21 @@ class MeanSquaredError(Loss):
 
 # Model class
 class Model:
-    def __init__(self, layers: List[Layer], loss: Loss, learning_rate: float=0.1, learning_rate_decay: Union[bool, str]=False, decay_rate: float=0.97, min_learning_rate: float=0.001):
+    def __init__(self, layers: List[Layer], loss: Loss, input_data: np.ndarray, learning_rate: float=0.1, learning_rate_decay: Union[bool, str]=False, decay_rate: float=0.97, min_learning_rate: float=0.001):
         self.layers = layers
         self.loss = loss
         self.learning_rate = learning_rate
         self.learning_rate_decay = learning_rate_decay
         self.decay_rate = decay_rate
         self.min_learning_rate = min_learning_rate
+        self._compile(input_data)
+
+    def _compile(self, input_data):
+        input_dim = input_data.shape[1]
+        for layer in self.layers:
+            layer.input_dim = input_dim
+            layer._init_weights()
+            input_dim = layer.output_dim
 
 
     def get_learning_rate(self, episode: int):
@@ -102,7 +114,7 @@ class Model:
 
 # Agent class
 class Agent:
-    def __init__(self, env, model: Model, transformer=None, epsilon=0.1, min_epsilon=0.1, epsilon_decay=0.99, gamma=0.9):
+    def __init__(self, env, model: Model, transformer=None, epsilon=0.1, min_epsilon=0.1, epsilon_decay=0.99, gamma=0.9, step_reward=None, term_reward=None):
         self.env = env
         self.model = model
         self.transformer = transformer
@@ -110,6 +122,8 @@ class Agent:
         self.min_epsilon = min_epsilon
         self.epsilon_decay = epsilon_decay
         self.gamma = gamma
+        self.step_reward = step_reward
+        self.term_reward = term_reward
 
     def get_epsilon(self, episode):
         return max(self.min_epsilon, self.epsilon*np.exp(-self.epsilon_decay*episode))
@@ -124,7 +138,7 @@ class Agent:
         rewards = []
         for episode in range(n_episodes):
             # re-instantiate environment with render mode set to 'human'
-            self.env = gym.make('CartPole-v1', render_mode="human")
+            self.env = gym.make(self.env.spec.id, render_mode="human")
             # Reset the environment
             state, _ = self.env.reset()
             # make sure state is 2d arrray
@@ -170,6 +184,8 @@ class Agent:
             while not done:
                 action = self.get_action(state, episode)
                 next_state, reward, term, trunc, _ = self.env.step(action)
+                if self.step_reward:
+                    reward += self.step_reward
                 total_reward += reward
                 # make sure next state is a 2D array
                 next_state = np.atleast_2d(next_state)
@@ -178,8 +194,8 @@ class Agent:
                     next_state = self.transformer.transform(next_state)
                 if term or trunc:
                     done = True
-                    if term:
-                        reward = -200
+                    if term and self.term_reward:
+                        reward += self.term_reward
                 # update model
                 G = reward + self.gamma*np.max(self.model.predict(next_state))
                 self.model.update(state, G, action, episode)

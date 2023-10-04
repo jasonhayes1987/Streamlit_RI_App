@@ -1,9 +1,5 @@
 ## TO DO ##
-# add option to alter/set termination reward
-# add option to alter step reward
-# add checkbox option to use RBF kernels
-# add checkbox option to use standard scaler
-# remove input dimension option after adding auto detect input dims to RL agent code
+
 
 import streamlit as st
 import gym_rl_agent as gra
@@ -59,39 +55,6 @@ def update_plots(plot_container):
     # Refresh the plot in Streamlit
     plot_container.pyplot(st.session_state.figure)
 
-def draw_plots(fig, ax):
-    # Plot rewards and avg rewards on the first subplot
-    ax[0].plot(st.session_state.rewards, label='Reward')
-    ax[0].plot(st.session_state.avg_rewards, label='Average Reward')
-    ax[0].set_title('Rewards over Episodes')
-    ax[0].set_xlabel('Episodes')
-    ax[0].set_ylabel('Rewards')
-    ax[0].legend()
-    ax[0].grid(True)
-
-    # Plot the last points with values
-    if st.session_state.rewards:
-        ax[0].text(len(st.session_state.rewards)-1, st.session_state.rewards[-1], str(st.session_state.rewards[-1]), fontsize=9)
-    if st.session_state.avg_rewards:
-        ax[0].text(len(st.session_state.avg_rewards)-1, st.session_state.avg_rewards[-1], str(st.session_state.avg_rewards[-1]), fontsize=9)
-
-    # Plot epsilon and learning rate on the second subplot
-    ax[1].plot(st.session_state.epsilons, label='Epsilon', color='g')
-    ax[1].plot(st.session_state.learning_rates, label='Learning Rate', color='r')
-    ax[1].set_title('Epsilon and Learning Rate over Episodes')
-    ax[1].set_xlabel('Episodes')
-    ax[1].set_ylabel('Value')
-    ax[1].legend()
-    ax[1].grid(True)
-
-    # Plot the last points with values
-    if st.session_state.epsilons:
-        ax[1].text(len(st.session_state.epsilons)-1, st.session_state.epsilons[-1], f'{st.session_state.epsilons[-1]:.2f}', fontsize=9)
-    if st.session_state.learning_rates:
-        ax[1].text(len(st.session_state.learning_rates)-1, st.session_state.learning_rates[-1], f'{st.session_state.learning_rates[-1]:.2f}', fontsize=9)
-
-    st.pyplot(fig)
-
 # Initialize session state variables if they haven't been already
 if 'agent_trained' not in st.session_state:
     st.session_state['agent_trained'] = False
@@ -113,16 +76,25 @@ if 'figure' not in st.session_state:
 st.title('Cartpole RL Agent')
 
 ## set parameters  ##
-# set number of kernels
-st.sidebar.header('Radial Basis Function Kernels')
-num_kernels = st.sidebar.number_input('Number of RBF kernels', min_value=1, max_value=10, value=4)
-kernels_params = []
 
-for i in range(num_kernels):
-    st.sidebar.subheader(f'Parameters for RBF Kernel {i+1}')
-    variance = st.sidebar.number_input(f'Variance for RBF Kernel {i+1}', min_value=0.01, max_value=5.0, value=0.5, step=0.1)
-    num_centers = st.sidebar.number_input(f'Number of centers for RBF Kernel {i+1}', min_value=10, max_value=2000, value=1000, step=10)
-    kernels_params.append((variance, num_centers))
+# ADD CODE HERE TO SET ENV CHOICE #
+gym_env = st.sidebar.selectbox('Gym Environment', ["Pendulum-v1","Acrobot-v1","CartPole-v1","MountainCarContinuous-v0","MountainCar-v0"])
+# option to scale data
+st.sidebar.header('Data Transformers')
+use_scaler = st.sidebar.checkbox('Use Standard Scaler')
+# option to use RBF kernels
+use_rbf = st.sidebar.checkbox('Use RBF Kernels')
+if use_rbf:
+    # set number of kernels
+    st.sidebar.subheader('Radial Basis Function Kernels')
+    num_kernels = st.sidebar.number_input('Number of RBF kernels', min_value=1, max_value=10, value=4)
+    kernels_params = []
+
+    for i in range(num_kernels):
+        st.sidebar.subheader(f'Parameters for RBF Kernel {i+1}')
+        variance = st.sidebar.number_input(f'Variance for RBF Kernel {i+1}', min_value=0.01, max_value=5.0, value=0.5, step=0.1)
+        num_centers = st.sidebar.number_input(f'Number of centers for RBF Kernel {i+1}', min_value=10, max_value=2000, value=1000, step=10)
+        kernels_params.append((variance, num_centers))
 
 # set number of layers in model
 st.sidebar.header('Dense Layers')
@@ -131,9 +103,9 @@ layer_params = []
 
 for i in range(num_layers):
     st.sidebar.subheader(f'Parameters for layer {i+1}')
-    input_dim = st.sidebar.number_input(f'Input dimension for layer {i+1}', min_value=1, value=1, step=1)
+    # input_dim = st.sidebar.number_input(f'Input dimension for layer {i+1}', min_value=1, value=1, step=1)
     output_dim = st.sidebar.number_input(f'Output dimension for layer {i+1}', min_value=1, value=1, step=1)
-    layer_params.append((input_dim, output_dim))
+    layer_params.append(output_dim)
 
 # set learning rate parameters
 st.sidebar.header('Learning Rate')
@@ -152,6 +124,19 @@ epsilon_decay = st.sidebar.number_input('Epsilon Decay', min_value=0.0, max_valu
 st.sidebar.subheader('Gamma')
 gamma = st.sidebar.number_input('Gamma (Return Decay)', min_value=0.0, max_value=1.0, value=0.97, step=0.01)
 
+st.sidebar.header('Training')
+# step reward adjustment selection checkbox
+if st.sidebar.checkbox('Adjust Step Reward'):
+    # step reward adjustment
+    r_step = st.sidebar.number_input(f'Step Reward Adjustment', value=0.0, step=1.0)
+else:
+    r_step = None
+# termination reward adjustment selection box
+if st.sidebar.checkbox('Adjust Termination Reward'):
+    # termination reward adjustment
+    r_term = st.sidebar.number_input(f'Termination Reward Adjustment', value=0.0, step=1.0)
+else:
+    r_term = None
 # set number of training episodes
 episodes = st.sidebar.number_input('Training Episodes', min_value=1, value=1000, step=1)
 
@@ -172,46 +157,62 @@ if train_button:
     st.session_state.learning_rates = []
 
     #instantiate cartpole env
-    env = gra.gym.make('CartPole-v1')
+    env = gra.gym.make(gym_env)
 
     # collect sample states to fit scaler and rbf kernels
-    sample_states = gra.get_sample_states(env, 10000)
+    sample_states = gra.get_sample_states(env, 1000)  
 
-    # instantiate scaler
-    scaler = gra.StandardScaler()
-
-    # instantiate rbf kernels and merge into a feature union
-    sigmas, n_components = zip(*kernels_params)
-    rbf_samplers = gra.create_rbf_samplers(sigmas, n_components)
-    # create a FeatureUnion object of RBFSamplers
-    rbf_union = gra.FeatureUnion([*rbf_samplers])
-
-    # instantiate a transformer class
-    transformer = gra.Transformer()
-    # add scaler and rbf union
-    transformer.add(scaler)
-    transformer.add(rbf_union)
-    # fit transformer to sample states
-    transformer.fit(sample_states)
+    if use_scaler or use_rbf:
+        # instantiate transformer
+        transformer = gra.Transformer()
+        # add scaler if set to use
+        if use_scaler:
+            # instantiate scaler
+            scaler = gra.StandardScaler()
+            transformer.add(scaler)
+        # add rbf if set to use
+        if use_rbf:
+            # instantiate rbf kernels and merge into a feature union
+            sigmas, n_components = zip(*kernels_params)
+            rbf_samplers = gra.create_rbf_samplers(sigmas, n_components)
+            # create a FeatureUnion object of RBFSamplers
+            rbf_union = gra.FeatureUnion([*rbf_samplers])
+            transformer.add(rbf_union)
+        # fit transformer to sample states
+        transformer.fit(sample_states)
+        # transform sample states to compile model to correct input data shape
+        sample_states = transformer.transform(sample_states)
+    else:
+        transformer = None
+    
+    
 
     # create the layers of the model
-    input_dims, output_dims = zip(*layer_params)
     layers = []
-    for i, o in zip(input_dims, output_dims):
-        layers.append(gra.DenseLayer(i,o))
+    for i in layer_params:
+        layers.append(gra.DenseLayer(i))
     
     loss = gra.MeanSquaredError()
 
     # create a model object
     model = gra.Model(layers=layers,
                 loss=loss,
+                input_data=sample_states,
                 learning_rate=learning_rate,
                 learning_rate_decay=learning_rate_decay,
                 decay_rate=decay_rate,
                 min_learning_rate=min_learning_rate)
 
     # create agent
-    agent = gra.Agent(env, model, transformer, epsilon=epsilon, min_epsilon=min_epsilon, epsilon_decay=epsilon_decay, gamma=gamma)
+    agent = gra.Agent(env,
+                      model,
+                      transformer,
+                      epsilon=epsilon,
+                      min_epsilon=min_epsilon,
+                      epsilon_decay=epsilon_decay,
+                      gamma=gamma,
+                      step_reward=r_step,
+                      term_reward=r_term)
 
     # placeholders for the plots
     # reward_placeholder = st.empty()
