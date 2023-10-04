@@ -5,7 +5,7 @@ import gymnasium as gym
 import numpy as np
 from sklearn.kernel_approximation import RBFSampler
 from sklearn.preprocessing import StandardScaler
-from sklearn.linear_model import SGDRegressor
+# from sklearn.linear_model import SGDRegressor
 from sklearn.pipeline import FeatureUnion
 from typing import List, Union
 
