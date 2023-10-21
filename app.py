@@ -1,5 +1,5 @@
 ## TO DO ##
-
+# add n_step method option
 
 import streamlit as st
 import gym_rl_agent as gra
@@ -24,7 +24,7 @@ def update_plots(plot_container):
 
     # Plot rewards and avg rewards on the first subplot
     st.session_state.ax1.plot(st.session_state.rewards, label='Reward')
-    st.session_state.ax1.plot(st.session_state.avg_rewards, label='Average Reward')
+    st.session_state.ax1.plot(st.session_state.avg_rewards, label='Average Reward/100 Episodes')
     st.session_state.ax1.set_title('Rewards over Episodes')
     st.session_state.ax1.set_xlabel('Episodes')
     st.session_state.ax1.set_ylabel('Rewards')

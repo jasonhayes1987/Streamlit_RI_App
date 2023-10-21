@@ -1,5 +1,6 @@
 ## TO DO ##
 # fix bug in models with more that one layer (grad var)
+# add n_step method
 
 import gymnasium as gym
 import numpy as np
@@ -66,6 +67,21 @@ class MeanSquaredError(Loss):
     def backward(self, pred, y):
         # Backward pass
         return pred-y
+    
+class TDError(Loss):
+    def __init__(self, gamma: float=0.0, lmbda: float=0.0):
+        self.e = 0 #eligibility trace
+        self.gamma = gamma
+        self.lmbda = lmbda
+    
+    def forward(self, pred, y):
+        # Forward pass
+        return np.mean((pred-y)**2)
+
+    def backward(self, pred, y):
+        # Backward pass
+        self.e = self.gamma * self.lmbda * self.e + (y-pred)
+        return self.e
 
 # Model class
 class Model:
