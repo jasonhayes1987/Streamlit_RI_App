@@ -1,5 +1,4 @@
-## TO DO ##
-# add n_step method option
+
 
 import streamlit as st
 import gym_rl_agent as gra
@@ -76,8 +75,6 @@ if 'figure' not in st.session_state:
 st.title('Cartpole RL Agent')
 
 ## set parameters  ##
-
-# ADD CODE HERE TO SET ENV CHOICE #
 gym_env = st.sidebar.selectbox('Gym Environment', ["Pendulum-v1","Acrobot-v1","CartPole-v1","MountainCarContinuous-v0","MountainCar-v0"])
 # option to scale data
 st.sidebar.header('Data Transformers')
@@ -120,9 +117,10 @@ epsilon = st.sidebar.number_input('Epsilon', min_value=0.0, max_value=1.0, value
 min_epsilon = st.sidebar.number_input('Minimum Epsilon', min_value=0.0, max_value=1.0, step=0.01, value=0.1)
 epsilon_decay = st.sidebar.number_input('Epsilon Decay', min_value=0.0, max_value=1.0, step=0.01, value=0.97)
 
-# set gamma
-st.sidebar.subheader('Gamma')
+# set TD Lambda parameters
+st.sidebar.subheader('TD Lambda')
 gamma = st.sidebar.number_input('Gamma (Return Decay)', min_value=0.0, max_value=1.0, value=0.97, step=0.01)
+lmbda = st.sidebar.number_input('Lambda (Previous Gradient Decay)', min_value=0.0, max_value=1.0, value=0.5, step=0.01)
 
 st.sidebar.header('Training')
 # step reward adjustment selection checkbox
@@ -192,7 +190,7 @@ if train_button:
     for i in layer_params:
         layers.append(gra.DenseLayer(i))
     
-    loss = gra.MeanSquaredError()
+    loss = gra.TDError(gamma=gamma, lmbda=lmbda)
 
     # create a model object
     model = gra.Model(layers=layers,
