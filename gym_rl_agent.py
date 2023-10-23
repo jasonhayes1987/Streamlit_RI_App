@@ -12,11 +12,12 @@ from typing import List, Union
 
 
 class Layer:
-    def __init__(self, output_dim: int, input_dim: int=None):
+    def __init__(self, output_dim: int, input_dim: int=None, gamma: float=None, lmbda: float=None, e_trace: np.ndarray=None):
         self.input_dim = input_dim
         self.output_dim = output_dim
-        # Initialize the weights, for example using random values
-        # self.w = np.random.randn(input_dim, output_dim)
+        self.gamma = gamma
+        self.lmbda = lmbda
+        self.e_trace = e_trace       
 
     def _init_weights(self):
         # Initialize the weights
@@ -31,7 +32,7 @@ class Layer:
         pass
 
 class DenseLayer(Layer):
-    def __init__(self, output_dim: int, input_dim: int=None):
+    def __init__(self, output_dim: int, input_dim: int=None, gamma: float=None, lmbda: float=None, init_trace: bool=False):
         super().__init__(output_dim, input_dim)
 
     def forward(self, x):
@@ -41,8 +42,16 @@ class DenseLayer(Layer):
 
     def backward(self, grad, learning_rate, action):
         # Backward pass & update weights
-        # self.w-=self.learning_rate*(X.T.dot(pred-y))
-        self.w[:,action] -= learning_rate*grad.dot(self.x)
+        if self.e_trace is not None:
+            # update eligibility trace
+            self.e_trace[:,action] = np.clip((self.gamma * self.lmbda * self.e_trace[:,action]) + self.x, -10.0, 10.0)
+            self.w[:,action] += learning_rate * grad * self.e_trace[:,action]
+            # print(f'grad:{grad}')
+            # print(f'e_trace[:,action]:{self.e_trace[:,action]}')
+            # self.w[:,action] += learning_rate * grad.dot(self.x)
+
+        else:
+            self.w[:,action] -= learning_rate * grad.dot(self.x)
 
 class Loss:
     def __init__(self):
@@ -69,19 +78,17 @@ class MeanSquaredError(Loss):
         return pred-y
     
 class TDError(Loss):
-    def __init__(self, gamma: float=0.0, lmbda: float=0.0):
-        self.e = 0 #eligibility trace
+    def __init__(self, gamma: float=0.97, lmbda: float=0.5):
         self.gamma = gamma
         self.lmbda = lmbda
     
     def forward(self, pred, y):
         # Forward pass
-        return np.mean((pred-y)**2)
+        return y-pred
 
     def backward(self, pred, y):
         # Backward pass
-        self.e = self.gamma * self.lmbda * self.e + (y-pred)
-        return self.e
+        return y-pred
 
 # Model class
 class Model:
@@ -97,9 +104,16 @@ class Model:
     def _compile(self, input_data):
         input_dim = input_data.shape[1]
         for layer in self.layers:
+            # set input dimensions and initialize weights
             layer.input_dim = input_dim
             layer._init_weights()
             input_dim = layer.output_dim
+            # if loss is TD Error, initialize gamma, lambda, and eligibility trace
+            if isinstance(self.loss, TDError):
+                for layer in self.layers:
+                    layer.gamma = self.loss.gamma
+                    layer.lmbda = self.loss.lmbda
+                    layer.e_trace = np.zeros((layer.input_dim, layer.output_dim))
 
 
     def get_learning_rate(self, episode: int):

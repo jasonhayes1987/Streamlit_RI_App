@@ -14,7 +14,7 @@ def main():
     transformer = gra.Transformer()
     scaler = gra.StandardScaler()
     transformer.add(scaler)
-    rbf_samplers = gra.create_rbf_samplers([0.01, 0.05, 0.1, 0.5],[1000, 1000, 1000, 1000])
+    rbf_samplers = gra.create_rbf_samplers([5.0, 2.0, 1.0, 0.5],[500, 500, 500, 500])
     rbf_union = gra.FeatureUnion([*rbf_samplers])
     transformer.add(rbf_union)
     transformer.fit(sample_states)
@@ -24,7 +24,7 @@ def main():
         gra.DenseLayer(3),
     ]
 
-    loss = gra.TDError(0.9, 0.6)
+    loss = gra.TDError(gamma=0.9999, lmbda=0.7)
 
     model = gra.Model(
         layers = layers,
@@ -40,15 +40,15 @@ def main():
         env,
         model,
         transformer,
-        epsilon = 1.0,
-        min_epsilon = 0.1,
+        epsilon = 0.0,
+        min_epsilon = 0.0,
         epsilon_decay=0.005,
-        gamma = 0.9,
+        gamma = 0.9999,
         step_reward = None,
-        term_reward = 200
+        term_reward = None
     )
 
-    for value in agent.train(1000):
+    for value in agent.train(2000):
             continue
 
 
